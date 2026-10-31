@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Things Linux</title>
+<style>
+  /* COLORS: change these and the whole app changes */
+  :root {
+    --bg: #120d14;
+    --card: #1e1622;
+    --text: #f3e9f5;
+    --dim: #b9a3bf;
+    --mauve: #c98bb9;
+    --pink: #ff5fa8;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, sans-serif;
+  }
+  header {
+    text-align: center;
+    padding: 20px 16px 8px;
+  }
+  header h1 { margin: 0; color: var(--pink); }
+  header p { margin: 4px 0 0; color: var(--dim); font-style: italic; }
+
+  /* THE TAB BUTTONS */
+  nav {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px;
+    overflow-x: auto;
+  }
+  nav button {
+    flex: 1;
+    background: var(--card);
+    color: var(--dim);
+    border: 1px solid var(--mauve);
+    border-radius: 10px;
+    padding: 10px 6px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  nav button.active {
+    background: var(--mauve);
+    color: var(--bg);
+    font-weight: bold;
+  }
+
+  /* THE PAGES */
+  section {
+    display: none;
+    margin: 0 16px 16px;
+    padding: 16px;
+    background: var(--card);
+    border-radius: 12px;
+  }
+  section.active { display: block; }
+  section h2 { margin-top: 0; color: var(--pink); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐧 All Things Linux</h1>
+  <p>When the Help File Is More Confusing</p>
+</header>
+
+<nav>
+  <button class="active" data-tab="decoder">🔍 Decoder</button>
+  <button data-tab="babysitter">🍼 Babysitter</button>
+  <button data-tab="wth">📖 WTH?</button>
+  <button data-tab="peed">🩲 Help</button>
+</nav>
+
+<section id="decoder" class="active">
+  <h2>What Do I Actually Type?</h2>
+  <p>Coming soon...</p>
+</section>
+
+<section id="babysitter">
+  <h2>Config Babysitter</h2>
+  <p>Coming soon...</p>
+</section>
+
+<section id="wth">
+  <h2>What the Hell Does That Mean?</h2>
+  <p>Coming soon...</p>
+</section>
+
+<section id="peed">
+  <h2>The I Peed My Pants Amendment</h2>
+  <p>Coming soon...</p>
+</section>
+
+<script>
+  // When you tap a tab button, show its page and hide the rest
+  document.querySelectorAll('nav button').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('nav button, section').forEach(function (el) {
+        el.classList.remove('active');
+      });
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+</script>
+
+</body>
+</html>
