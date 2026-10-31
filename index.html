@@ -93,6 +93,55 @@
   }
   .piece code { color: var(--pink); font-size: 16px; }
   .piece .why { grid-column: 2; color: var(--dim); }
+
+
+  /* WTH? COMMAND LIST */
+  #search {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--mauve);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 16px;
+  }
+  #letters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 10px 0;
+  }
+  #letters button {
+    min-width: 30px;
+    padding: 6px 4px;
+    background: var(--bg);
+    color: var(--dim);
+    border: 1px solid #3a2c40;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  #letters button.active { background: var(--pink); color: var(--bg); border-color: var(--pink); }
+  #count { color: var(--dim); font-size: 13px; margin: 4px 0 8px; }
+  details.cmd { border-bottom: 1px dashed #3a2c40; }
+  details.cmd summary { padding: 10px 0; cursor: pointer; list-style: none; }
+  details.cmd summary::-webkit-details-marker { display: none; }
+  details.cmd summary code { color: var(--pink); font-size: 17px; font-weight: bold; }
+  details.cmd summary .short { display: block; color: var(--dim); font-size: 13px; margin-top: 2px; }
+  details.cmd[open] summary .short { display: none; }
+  .cmd-body { padding: 0 0 12px; }
+  .cmd-body .label { color: var(--mauve); font-weight: bold; margin: 12px 0 4px; }
+  .cmd-body pre {
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px;
+    overflow-x: auto;
+    margin: 0;
+  }
+  .cmd-body .note { color: var(--dim); margin: 4px 0 0; }
+  .tag { margin-top: 10px; padding: 8px 10px; border-radius: 8px; border-left: 4px solid var(--mauve); background: var(--bg); }
+  .tag.careful { border-left-color: var(--pink); }
 </style>
 </head>
 <body>
@@ -124,7 +173,11 @@
 
 <section id="wth">
   <h2>What the Hell Does That Mean?</h2>
-  <p>Coming soon...</p>
+  <p>Every command from the book. Search it or pick a letter, then tap a command to open it.</p>
+  <input id="search" type="search" placeholder="Search: ls, copy, delete..." autocomplete="off">
+  <div id="letters"></div>
+  <p id="count"></p>
+  <div id="cmdList"></div>
 </section>
 
 <section id="peed">
@@ -132,6 +185,7 @@
   <p>Coming soon...</p>
 </section>
 
+<script src="commands.js"></script>
 <script>
   // When you tap a tab button, show its page and hide the rest
   document.querySelectorAll('nav button').forEach(function (btn) {
@@ -260,7 +314,124 @@
   }
 
   document.getElementById('decodeBtn').addEventListener('click', decode);
+
+
+  // ===== WTH? COMMAND LIST =====
+  // COMMANDS comes from the commands.js file. Each one becomes a
+  // tap-to-open box. Search and the letter buttons just hide the
+  // boxes that don't match.
+
+  var cmdList = document.getElementById('cmdList');
+  var searchBox = document.getElementById('search');
+  var lettersBox = document.getElementById('letters');
+  var countLine = document.getElementById('count');
+  var pickedLetter = 'All';
+
+  // Little helper: make an element with a class and some text
+  function make(tag, cls, txt) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (txt) el.textContent = txt;
+    return el;
+  }
+
+  // Which letter button a command lives under (symbols go under #)
+  function letterOf(name) {
+    var first = name.charAt(0).toUpperCase();
+    return /[A-Z]/.test(first) ? first : '#';
+  }
+
+  // Build one tap-to-open box for one command
+  function buildCommand(c) {
+    var box = make('details', 'cmd');
+    box.dataset.name = c.name.toLowerCase();
+    box.dataset.letter = letterOf(c.name);
+    // Everything the search box can match: name, what it does, and the example notes
+    box.dataset.find = [c.name, c.what].concat(c.examples.map(function (ex) { return ex.note; }))
+      .join(' ').toLowerCase();
+
+    var top = make('summary');
+    top.appendChild(make('code', '', c.name));
+    if (c.icon) top.appendChild(document.createTextNode(' ' + c.icon));
+    top.appendChild(make('span', 'short', c.what));
+    box.appendChild(top);
+
+    var body = make('div', 'cmd-body');
+    body.appendChild(make('p', '', '🛠️ ' + c.what));
+    c.examples.forEach(function (ex) {
+      body.appendChild(make('div', 'label', ex.label || 'Example'));
+      if (ex.code) body.appendChild(make('pre', '', ex.code));
+      if (ex.note) body.appendChild(make('p', 'note', '→ ' + ex.note));
+    });
+    if (c.dyk) {
+      body.appendChild(make('div', 'label', '💡 Did You Know?'));
+      body.appendChild(make('p', '', c.dyk));
+    }
+    (c.tags || []).forEach(function (t) {
+      var names = { careful: '⚠️ Careful: ', heads: '⚠️ Heads up: ', fossil: '⚰️ Fossil: ' };
+      body.appendChild(make('div', 'tag ' + t[0], names[t[0]] + t[1]));
+    });
+    box.appendChild(body);
+    return box;
+  }
+
+  // Show only the boxes that match the search and the letter
+  function filterCommands() {
+    var words = searchBox.value.trim().toLowerCase();
+    var shown = 0;
+    var boxes = Array.prototype.slice.call(cmdList.querySelectorAll('details.cmd'));
+
+    // Put the best matches on top: exact name first, then names that
+    // start with the search, then names that contain it, then the rest.
+    // With no search, everything goes back to A to Z (book) order.
+    function score(box) {
+      var n = box.dataset.name;
+      if (!words) return 0;
+      if (n === words) return 0;
+      if (n.indexOf(words) === 0) return 1;
+      if (n.indexOf(words) > -1) return 2;
+      return 3;
+    }
+    boxes.sort(function (a, b) {
+      return (score(a) - score(b)) || (a.dataset.order - b.dataset.order);
+    });
+    boxes.forEach(function (box) {
+      var letterOk = pickedLetter === 'All' || box.dataset.letter === pickedLetter;
+      var searchOk = !words || box.dataset.find.indexOf(words) > -1;
+      box.hidden = !(letterOk && searchOk);
+      if (!box.hidden) shown++;
+      cmdList.appendChild(box); // moving it to the end puts the list in sorted order
+    });
+    countLine.textContent = shown === 0
+      ? 'Nothing matched. Try a shorter word, or tap All.'
+      : 'Showing ' + shown + ' command' + (shown === 1 ? '' : 's');
+  }
+
+  if (typeof COMMANDS === 'undefined') {
+    countLine.textContent = 'The command list did not load. Make sure commands.js sits right next to index.html.';
+  } else {
+    COMMANDS.forEach(function (c, i) {
+      var box = buildCommand(c);
+      box.dataset.order = i; // remembers the book order
+      cmdList.appendChild(box);
+    });
+
+    ['All', '#'].concat('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')).forEach(function (L) {
+      var b = make('button', L === 'All' ? 'active' : '', L);
+      b.addEventListener('click', function () {
+        pickedLetter = L;
+        lettersBox.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        filterCommands();
+      });
+      lettersBox.appendChild(b);
+    });
+
+    searchBox.addEventListener('input', filterCommands);
+    filterCommands();
+  }
 </script>
 
 </body>
 </html>
+
